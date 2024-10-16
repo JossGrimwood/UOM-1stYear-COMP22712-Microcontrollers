@@ -1,0 +1,594 @@
+KMD
+00000000: EA00003B    ; B MAIN
+00000004: EAFFFFFE    ; B . ;UNDEFINED
+00000008: EA00000E    ; B SVC_CALL
+0000000C: EAFFFFFE    ; B . ;PREFETCH
+00000010: EAFFFFFE    ; B . ;DATA
+00000014: E1A00000    ; NOP
+00000018: EA000000    ; B IRQ_CALL
+0000001C: EAFFFFFE    ; B . ;FIQ
+00000020:             ; 
+00000020:             ; IO  EQU &1000_0000
+00000020:             ; 
+00000020:             ; IRQ_PORT EQU &18
+00000020:             ; IRQ_EN_PORT EQU &1C
+00000020:             ; TIMER_MASK EQU 0B0111_1111
+00000020:             ; 
+00000020:             ; IRQ_CALL
+00000020: E24EE004    ;         SUB LR,LR, #4
+00000024: E92D4007    ;         PUSH {R0-R2,LR}
+00000028:             ; 
+00000028: E3A00201    ;         MOV R0, #IO
+0000002C: E5D01018    ;         LDRB R1, [R0, #IRQ_PORT]
+00000030:             ; 
+00000030: E3C1207F    ;         BIC R2, R1, #TIMER_MASK
+00000034: E3520000    ;         CMP R2, #0
+00000038: 1B0000F5    ;         BLNE TIMER_FUNCTION
+0000003C: 1202207F    ;         ANDNE R2, R2, #TIMER_MASK
+00000040:             ; 
+00000040: E8FD8007    ;         POP {R0-R2,PC}^
+00000044:             ; 
+00000044: 00000000    ; REG_STORE DEFW 0
+00000048:             ; SVC_CALL
+00000048: E92D4000    ;         PUSH {LR}
+0000004C: E50F0010    ;         STR R0, REG_STORE           ; SAVE R0
+00000050: E14F0000    ;         MRS R0, SPSR                ; GET SPSR
+00000054: E92D0001    ;         PUSH {R0}                   ; PUSH SPSR      
+00000058: E51F001C    ;         LDR R0, REG_STORE           ; RETRIEVE R0             
+0000005C: E51EE004    ;         LDR R14, [LR, #-4]          ; load previous instruction
+00000060: E3CEE4FF    ;         BIC R14, R14, #&FF000000    ; mask of bits 
+00000064: E35E0004    ;         CMP R14, #MAX_SVC           ; check svc value is valid
+00000068: 8A00000F    ;         BHI SVC_UNKOWN  
+0000006C: E08FE10E    ;         ADD R14, PC, R14, LSL #2    ; address jump table
+00000070: E59EF000    ;         LDR PC, [R14, #0] 
+00000074:             ; MAX_SVC EQU 4
+00000074: 000000B0    ; JUMP_TABLE  DEFW SVC_0   ;PRINT
+00000078: 000000B8    ;             DEFW SVC_1   ;LCD COMMAND
+0000007C: 000000C0    ;             DEFW SVC_2   ;halt
+00000080: 000000CC    ;             DEFW SVC_3   ;TIMER SET FUNC
+00000084: 000000D4    ;             DEFW SVC_4   ;TIMER SET FVAL
+00000088: 000000DC    ;             DEFW SVC_5   ;TIMER DISABLE
+0000008C: 000000E4    ;             DEFW SVC_6   ;TIMER ENABLE
+00000090: 000000EC    ;             DEFW SVC_7   ;BUTTONS
+00000094:             ; EXIT_SVC
+00000094: E50F0058    ;         STR R0, REG_STORE           ; SAVE R0
+00000098: E8BD0001    ;         POP {R0}                    ; POP SPSR
+0000009C: E16FF000    ;         MSR SPSR, R0                ; RETURN SPSR    
+000000A0: E51F0064    ;         LDR R0, REG_STORE           ; RETRIEVE R0                  
+000000A4: E8BD4000    ;         POP {LR}         ;return back to user code
+000000A8: E1B0F00E    ;         MOVS PC, LR
+000000AC:             ; 
+000000AC:             ; SVC_UNKOWN
+000000AC: EAFFFFFE    ;     B .             ;SVC unknown
+000000B0:             ; SVC_0               ;Print char
+000000B0: EB000054    ;     BL PRINT_CHAR
+000000B4: EAFFFFF6    ;     B EXIT_SVC
+000000B8:             ; SVC_1               ;LCD command
+000000B8: EB000089    ;     BL SETUP_COMMAND  
+000000BC: EAFFFFF4    ;     B EXIT_SVC
+000000C0:             ; SVC_2               ;Halt
+000000C0:             ;     HALT EQU &20
+000000C0: E3A00201    ;     MOV R0, #IO
+000000C4: E3A010FF    ;     MOV R1, #&FF
+000000C8: E5801020    ;     STR R1, [R0, #HALT] ;halt
+000000CC:             ; SVC_3               ;TIMER SET FUNC
+000000CC: EB0000D1    ;     BL SET_TIMER_FUNCTION  
+000000D0: EAFFFFEF    ;     B EXIT_SVC
+000000D4:             ; SVC_4               ;TIMER SET VAL
+000000D4: EB0000D1    ;     BL SET_TIMER_VAL  
+000000D8: EAFFFFED    ;     B EXIT_SVC
+000000DC:             ; SVC_5               ;TIMER DISABLE
+000000DC: EB0000D9    ;     BL DISABLE_TIMER  
+000000E0: EAFFFFEB    ;     B EXIT_SVC
+000000E4:             ; SVC_6               ;TIMER ENABLE
+000000E4: EB0000D1    ;     BL ENABLE_TIMER  
+000000E8: EAFFFFE9    ;     B EXIT_SVC
+000000EC:             ; SVC_7               ;BUTTON
+000000EC: EB0000DB    ;     BL CHECK_BUTTONS  
+000000F0: EAFFFFE7    ;     B EXIT_SVC
+000000F4:             ; 
+000000F4:             ; MODE_CLEAR EQU &1F
+000000F4:             ; SYSTEM EQU &1F
+000000F4:             ; SUPERVISOR EQU &13
+000000F4:             ; INTERUPT EQU &12
+000000F4:             ; MAIN 
+000000F4: E28FD018    ;         ADRL SP, SVC_STACK   ; Setup supervisor stack
+000000F8: E28DDB01    ; 
+000000FC:             ;         
+000000FC: E10F0000    ;         MRS R0, CPSR                 ; switch to system
+00000100: E3C0001F    ;         BIC R0, R0, #MODE_CLEAR      ; clear mode
+00000104: E380001F    ;         ORR R0, R0, #SYSTEM          ; set system mode
+00000108: E121F000    ;         MSR CPSR_c, R0               ; APPLY MODE
+0000010C:             ; 
+0000010C: E28FDE3B    ;         ADRL SP, USR_STACK   ; Setup supervisor stack
+00000110:             ; 
+00000110: E10F0000    ;         MRS R0, CPSR                 ; switch to IRQ
+00000114: E3C0001F    ;         BIC R0, R0, #MODE_CLEAR      ; clear mode
+00000118: E3800012    ;         ORR R0, R0, #INTERUPT        ; set IRQ mode
+0000011C: E121F000    ;         MSR CPSR_c, R0               ; APPLY MODE
+00000120:             ; 
+00000120: E28FD03C    ;         ADRL SP, IRQ_STACK   ; Setup supervisor stack
+00000124: E28DDB01    ; 
+00000128:             ; 
+00000128: E3A00201    ;         MOV R0, #IO
+0000012C: E3A02000    ;         MOV R2, #0
+00000130: E5C0201C    ;         STRB R2, [R0, #IRQ_EN_PORT]
+00000134:             ; 
+00000134:             ; 
+00000134: E3A0E0D0    ;         MOV R14, #&D0       ;USERMODE
+00000138: E16FF00E    ;         MSR SPSR, R14
+0000013C: E28FE000    ;         ADR R14, USR_CODE
+00000140: E1B0F00E    ;         MOVS PC, R14        ;move to user code
+00000144:             ; 
+00000144:             ; USR_CODE
+00000144:             ; INCLUDE users.s
+00000144: E28F001C    ;         ADR R0, INCREMENT_TIME
+00000148: EF000003    ;         SVC 3
+0000014C: E3A00000    ;         MOV R0, #0      ;INITIALIZE VALUES 
+00000150: EF000004    ;         SVC 4
+00000154: E59F2074    ;         LDR R2, VAL     ;TIMER VALUE
+00000158: E3A03000    ;         MOV R3, #0      ;COUNT OF BUTTON HOLD
+0000015C: EB00005C    ;         BL Clear
+00000160: EF000006    ;         SVC 6
+00000164: EAFFFFFE    ;         B .
+00000168:             ;         
+00000168:             ;         
+00000168:             ;         
+00000168:             ; 
+00000168:             ; INCREMENT_TIME
+00000168: EB000004    ;         BL DISPLAY
+0000016C: E2810064    ;         ADD R0, R1, #100        ;INCREMENT TRIGGER VALUE
+00000170: E35000FF    ;         CMP R0, #255            ;CHECK IF TOO LARGE
+00000174: C2400C01    ;         SUBGT R0, R0, #256      ;WRAP AROUND TO LOW
+00000178: EF000004    ;         SVC 4
+0000017C: E1A0F00E    ;         MOV PC, LR
+00000180:             ; 
+00000180:             ; DISPLAY
+00000180: E92D4001    ;         PUSH {R0,LR}
+00000184:             ; 
+00000184: E1A00002    ;         MOV R0, R2      ;MOVE TIME VALUE TO R0
+00000188: EB000023    ;         BL PrintTime    ;PRINT TIME
+0000018C:             ;         
+0000018C:             ;         ;TO DO CHECK BUTTONS
+0000018C: EF000007    ;         SVC 7
+00000190:             ; 
+00000190: E3C04001    ;         BIC R4, R0, #0B01       ;CHECK BOTTOM BUTTON
+00000194: E3540000    ;         CMP R4, #0
+00000198: CA000007    ;         BGT PAUSE               ;PAUSE IF PRESSED
+0000019C:             ;         ENDPAUSE
+0000019C:             ; 
+0000019C: E3C04002    ;         BIC R4, R0, #0B10       ;CHECK TOP BUUTON
+000001A0: E3540000    ;         CMP R4, #0              
+000001A4: C2833001    ;         ADDGT R3, R3, #1        ;INCRIMENT IF PRESSED
+000001A8: 03A03000    ;         MOVEQ R3, #0            ;REST IF NOT PRESSED
+000001AC:             ; 
+000001AC: E353000A    ;         CMP R3, #10             ;IF HELD FOR 1 SECOND
+000001B0: C3A02000    ;         MOVGT R2, #0            ;RESET TIME
+000001B4: C3A03000    ;         MOVGT R3, #0            ;RESET COUNT OF BUTTON HOLD
+000001B8:             ;         
+000001B8: E8BD8001    ;         POP{R0,PC}
+000001BC:             ; 
+000001BC:             ; PAUSE 
+000001BC: EF000007    ;         SVC 7                   ;POLL BUTTON
+000001C0: E3C04002    ;         BIC R4, R0, #0B10       ;CHECK TOP BUTTON
+000001C4: E3540000    ;         CMP R4, #0
+000001C8: CAFFFFF3    ;         BGT ENDPAUSE            ;UNPAUSE IF PRESSED
+000001CC: EAFFFFFA    ;         B PAUSE
+000001D0:             ; 
+000001D0: 00000000    ; VAL DEFW 0
+000001D4:             ; 
+000001D4:             ; 
+000001D4:             ; align
+000001D4:             ; ALIGN
+000001D4:             ; ; libraries
+000001D4:             ; INCLUDE print.s 
+000001D4:             ; ; Author: Jocelyn Grimwood
+000001D4:             ; ; Print functions
+000001D4:             ; ; **************************************
+000001D4:             ; ; DO NOT USE FUNCTIONS IN BLOCK CAPITALS
+000001D4:             ; ; **************************************
+000001D4:             ; ; pass paramters on r0
+000001D4:             ; ; usefull functions:
+000001D4:             ; ;       PrintString - pass pointer to array with null terminating character (accepts newline ch
+                      ; aracter)
+000001D4:             ; ;       PrintChar - pass char in register
+000001D4:             ; ;       MoveToLine1/2 - pass character position of respective line
+000001D4:             ; ;       NewLine - no input
+000001D4:             ; ;       Clear - no input
+000001D4:             ; ;       PrintTime - R0 int value of time in 1/10ths second
+000001D4:             ; 
+000001D4:             ; 
+000001D4:             ; 
+000001D4:             ; ; memory loactions
+000001D4:             ; CONTROL EQU &4
+000001D4:             ; DATA EQU &0
+000001D4:             ; 
+000001D4:             ; ; Mask for LCD busy
+000001D4:             ; BUSY_MASK EQU 0B1000_0000
+000001D4:             ; 
+000001D4:             ; NULL_CHAR EQU 0
+000001D4:             ; NEW_LINE EQU &0A
+000001D4:             ; 
+000001D4:             ; ; settings for writing commands to LCD
+000001D4:             ; PREP_COMMAND EQU 0B0010_0000
+000001D4:             ; ENABLE_COMMAND EQU 0B0010_0001
+000001D4:             ; END_COMMAND EQU 0B0010_0000
+000001D4:             ; FORMFEAD EQU &01
+000001D4:             ; LINEFEAD EQU &C0
+000001D4:             ; STARTPOS1 EQU &80
+000001D4:             ; STARTPOS2 EQU &C0
+000001D4:             ; 
+000001D4:             ; ; settings for read from LCD
+000001D4:             ; PREP_READ EQU 0B0010_0100
+000001D4:             ; ENABLE_READ EQU 0B0010_0101
+000001D4:             ; END_READ EQU 0B0010_0100
+000001D4:             ; 
+000001D4:             ; ; setting for write to LCD
+000001D4:             ; PREP_WRITE EQU 0B0010_0010
+000001D4:             ; ENABLE_WRITE EQU 0B0010_0011
+000001D4:             ; END_WRITE EQU 0B0010_0010
+000001D4:             ; 
+000001D4:             ; PrintString ; write string indexed by r0
+000001D4: E92D4003    ;         PUSH {LR, R0-R1}            ; Push used registers
+000001D8: E1A01000    ;         MOV R1, R0
+000001DC:             ; 
+000001DC:             ;     NEXT_CHAR                       ; Loop through char array
+000001DC: E4D10001    ;         LDRB R0, [R1], #1           ; Load char and post increment address
+000001E0: E3500000    ;         CMP R0, #NULL_CHAR          ; Check not end of array
+000001E4: 0A000003    ;         BEQ EOS                     ; If end branch to End Of String
+000001E8: E350000A    ;         CMP R0, #NEW_LINE           ; Check for new line
+000001EC: 1F000000    ;         SVCNE 0                     ; Print loaded char 
+000001F0: 0B000033    ;         BLEQ NewLine                ; Write new line
+000001F4: EAFFFFF8    ;         B NEXT_CHAR                 ; Loop for next char
+000001F8:             ;     EOS
+000001F8: E8BD8003    ;         POP {PC, R0-R1}             ; Pop registers back and update pc
+000001FC:             ; 
+000001FC:             ; PrintChar                           ;pass through for SVC 0 
+000001FC: E92D4000    ;         PUSH {LR}                   
+00000200: EF000000    ;         SVC 0
+00000204: E8BD8000    ;         POP {PC}
+00000208:             ; 
+00000208:             ; PRINT_CHAR   ; write single Char from r0
+00000208: E92D400F    ;         PUSH {LR, R0-R3}            ; Push used registers
+0000020C: E3A01201    ;         MOV R1, #IO                 ; Setup location of IO
+00000210: EB000038    ;         BL CHECK_BUSY               ; Check LCD busy
+00000214: EB000041    ;         BL WRITE_CHAR               ; Write to LCD
+00000218: E8BD800F    ;         POP {PC, R0-R3}             ; Pop registers back and update pc
+0000021C:             ; 
+0000021C:             ; 
+0000021C:             ; ; *********** Following for printing bcd time format to LCD
+0000021C:             ; PrintTime
+0000021C: E92D41FE    ;         PUSH {R1-R8, LR}                ;START clear function
+00000220:             ;         
+00000220: EB000052    ;         BL bcd_time_convert
+00000224:             ; 
+00000224: E1A01000    ;         MOV R1, R0
+00000228: E3A00000    ;         MOV R0, #0
+0000022C: EB00001C    ;         BL MoveToLine1
+00000230:             ; 
+00000230: E1A00C21    ;         MOV R0, R1, LSR #24     ;HOURS PRINT
+00000234: E20002FF    ;         BIC R0, R0, #&FFFFFF0
+00000238: E2800030    ;         ADD R0, R0, #48
+0000023C: EF000000    ;         svc 0
+00000240:             ; 
+00000240: E1A00A21    ;         MOV R0, R1, LSR #20
+00000244: E20002FF    ;         BIC R0, R0, #&FFFFFF0
+00000248: E2800030    ;         ADD R0, R0, #48
+0000024C: EF000000    ;         SVC 0
+00000250:             ; 
+00000250: E3A0003A    ;         MOV R0, #':'
+00000254: EF000000    ;         SVC 0
+00000258:             ; 
+00000258: E1A00821    ;         MOV R0, R1, LSR #16     ;MINUTES PRINT
+0000025C: E20002FF    ;         BIC R0, R0, #&FFFFFF0
+00000260: E2800030    ;         ADD R0, R0, #48
+00000264: EF000000    ;         svc 0
+00000268:             ; 
+00000268: E1A00621    ;         MOV R0, R1, LSR #12
+0000026C: E20002FF    ;         BIC R0, R0, #&FFFFFF0
+00000270: E2800030    ;         ADD R0, R0, #48
+00000274: EF000000    ;         SVC 0
+00000278:             ; 
+00000278: E3A0003A    ;         MOV R0, #':'
+0000027C: EF000000    ;         SVC 0
+00000280:             ; 
+00000280: E1A00421    ;         MOV R0, R1, LSR #8      ;SECONDS PRINT
+00000284: E20002FF    ;         BIC R0, R0, #&FFFFFF0
+00000288: E2800030    ;         ADD R0, R0, #48
+0000028C: EF000000    ;         SVC 0
+00000290:             ; 
+00000290: E1A00221    ;         MOV R0, R1, LSR #4
+00000294: E20002FF    ;         BIC R0, R0, #&FFFFFF0
+00000298: E2800030    ;         ADD R0, R0, #48
+0000029C: EF000000    ;         SVC 0
+000002A0:             ; 
+000002A0:             ; 
+000002A0: E8BD81FE    ;         POP {R1-R8, PC}
+000002A4:             ; 
+000002A4:             ; 
+000002A4:             ; ; *********** Folowing procedures for commands only
+000002A4:             ; MoveToLine1
+000002A4: E92D4001    ;         PUSH {LR, R0}            ; Push used registers
+000002A8: E2800080    ;         ADD R0, R0, #STARTPOS1   ; Setup offset
+000002AC: EF000001    ;         SVC 1                    ; Run command
+000002B0: E8BD8001    ;         POP {PC, R0}             ; Pop registers back and update pc
+000002B4:             ; MoveToLine2
+000002B4: E92D4001    ;         PUSH {LR, R0}            ; Push used registers
+000002B8: E28000C0    ;         ADD R0, R0, #STARTPOS2   ; Setup offset
+000002BC: EF000001    ;         SVC 1                    ; Run command
+000002C0: E8BD8001    ;         POP {PC, R0}             ; Pop registers back and update pc
+000002C4:             ; NewLine
+000002C4: E92D4001    ;         PUSH {LR, R0}            ; Push used registers
+000002C8: E3A000C0    ;         MOV R0, #LINEFEAD        ; Set line feed character
+000002CC: EF000001    ;         SVC 1                    ; Run command
+000002D0: E8BD8001    ;         POP {PC, R0}             ; Pop registers back and update pc
+000002D4:             ; Clear   
+000002D4: E92D4001    ;         PUSH {LR, R0}            ; Push used registers
+000002D8: E3A00001    ;         MOV R0, #FORMFEAD        ; Set clear character
+000002DC: EF000001    ;         SVC 1                    ; Run command
+000002E0: E8BD8001    ;         POP {PC, R0}             ; Pop registers back and update pc
+000002E4:             ; 
+000002E4:             ; ; *********** Folowing procedures not for user
+000002E4:             ; SETUP_COMMAND
+000002E4: E92D400F    ;         PUSH {LR, R0-R3}            
+000002E8: E3A01201    ;         MOV R1, #IO                 ; Setup location of IO
+000002EC: EB000001    ;         BL CHECK_BUSY               ; Check LCD busy
+000002F0: EB000012    ;         BL WRITE_COMMAND            ; Write to LCD
+000002F4: E8BD800F    ;         POP {PC, R0-R3} 
+000002F8:             ; 
+000002F8:             ; CHECK_BUSY
+000002F8: E3A02024    ;         MOV R2, #PREP_READ          ; Set signal and R/W lines
+000002FC: E5C12004    ;         STRB R2, [R1, #CONTROL]
+00000300:             ;     BUSY  ; Read response from LCD and repeat untill free
+00000300: E3A02025    ;         MOV R2, #ENABLE_READ        ; Enable read
+00000304: E5C12004    ;         STRB R2, [R1, #CONTROL]
+00000308: E5D13000    ;         LDRB R3, [R1, #DATA]        ; Read data
+0000030C: E3A02024    ;         MOV R2, #END_READ           ; Set enable low
+00000310: E5C12004    ;         STRB R2, [R1, #CONTROL]     
+00000314: E3130080    ;         TST R3, #BUSY_MASK          ; Check LCD is not busy with mask
+00000318: 1AFFFFF8    ;         BNE BUSY
+0000031C: E1A0F00E    ;         MOV PC, LR                  ; Exit method
+00000320:             ; 
+00000320:             ; WRITE_CHAR ; Write single Char in r0 to LCD
+00000320: E3A02022    ;         MOV R2, #PREP_WRITE         ; Set signal and R/W lines
+00000324: E5C12004    ;         STRB R2, [R1, #CONTROL]
+00000328:             ; 
+00000328: E5C10000    ;         STRB R0, [R1, #DATA]        ; Write Char in advance of enable 
+0000032C:             ; 
+0000032C: E3A02023    ;         MOV R2, #ENABLE_WRITE       ; Pulse enable to write char
+00000330: E5C12004    ;         STRB R2, [R1, #CONTROL]
+00000334: E3A02022    ;         MOV R2, #END_WRITE
+00000338: E5C12004    ;         STRB R2, [R1, #CONTROL]
+0000033C: E1A0F00E    ;         MOV PC, LR                  ; Exit method
+00000340:             ; 
+00000340:             ; WRITE_COMMAND   
+00000340: E3A02020    ;         MOV R2, #PREP_COMMAND       ; Set signal and R/W lines
+00000344: E5C12004    ;         STRB R2, [R1, #CONTROL]
+00000348:             ;         
+00000348: E5C10000    ;         STRB R0, [R1, #DATA]        ; Write command in advance of enable
+0000034C:             ; 
+0000034C: E3A02021    ;         MOV R2, #ENABLE_COMMAND     ; Pulse enable to write Command
+00000350: E5C12004    ;         STRB R2, [R1, #CONTROL]
+00000354: E3A02020    ;         MOV R2, #END_COMMAND
+00000358: E5C12004    ;         STRB R2, [R1, #CONTROL]
+0000035C: E1A0F00E    ;         MOV PC, LR                  ; Exit method
+00000360:             ; 
+00000360:             ; 
+00000360:             ; 
+00000360:             ; 
+00000360:             ; ;-------------------------------------------------------------------------------
+00000360:             ; 
+00000360:             ; ; Convert unsigned binary value in R0 into BCD representation, returned in R0
+00000360:             ; ; Any overflowing digits are generated, but not retained or returned in this
+00000360:             ; ;  version.
+00000360:             ; ; Corrupts registers R1-R6, inclusive; also R14
+00000360:             ; ; Does not require a stack
+00000360:             ; 
+00000360: E92D403E    ; bcd_convert     PUSH {R1-R5,LR}                 ; Keep return address
+00000364:             ;                                                 ;  in case there is no stack
+00000364: E28F4034    ;                 adr     r4, dec_table           ; Point at conversion table
+00000368: E3A05000    ;                 mov     r5, #0                  ; Zero accumulator
+0000036C: EA000002    ;                 B bcd_loop
+00000370:             ; bcd_time_convert
+00000370: E92D403E    ;                 PUSH {R1-R5,LR}                 ; Keep return address
+00000374:             ;                                                 ;  in case there is no stack
+00000374: E28F404C    ;                 adr     r4, time_table          ; Point at conversion table
+00000378: E3A05000    ;                 mov     r5, #0                  ; Zero accumulator
+0000037C:             ; 
+0000037C: E4941004    ; bcd_loop        ldr     r1, [r4], #4            ; Get next divisor, step pointer
+00000380: E3510001    ;                 cmp     r1, #1                  ; Termination condition?
+00000384: 0A000003    ;                 beq     bcd_out                 ;  yes
+00000388:             ; 
+00000388: EB000015    ;                 bl      divide                  ; R0 := R0/R1 (rem. R2)
+0000038C:             ; 
+0000038C: E0805205    ;                 add     r5, r0, r5, lsl #4      ; Accumulate result
+00000390: E1A00002    ;                 mov     r0, r2                  ; Recycle remainder
+00000394: EAFFFFF8    ;                 b       bcd_loop                ;
+00000398:             ; 
+00000398: E0800205    ; bcd_out         add     r0, r0, r5, lsl #4      ; Accumulate result to output
+0000039C:             ; 
+0000039C: E8BD803E    ;                 POP {R1-R5,PC}                  ; Return
+000003A0:             ; 
+000003A0: 3B9ACA00    ; dec_table       DCD     1000000000, 100000000, 10000000, 1000000
+000003A4: 05F5E100    ; 
+000003A8: 00989680    ; 
+000003AC: 000F4240    ; 
+000003B0: 000186A0    ;                 DCD     100000, 10000, 1000, 100, 10, 1
+000003B4: 00002710    ; 
+000003B8: 000003E8    ; 
+000003BC: 00000064    ; 
+000003C0: 0000000A    ; 
+000003C4: 00000001    ; 
+000003C8:             ; 
+000003C8: 00057E40    ; time_table      DCD     360000, 36000, 6000, 600, 100, 10, 1
+000003CC: 00008CA0    ; 
+000003D0: 00001770    ; 
+000003D4: 00000258    ; 
+000003D8: 00000064    ; 
+000003DC: 0000000A    ; 
+000003E0: 00000001    ; 
+000003E4:             ; 
+000003E4:             ; ;-------------------------------------------------------------------------------
+000003E4:             ; 
+000003E4:             ; ; 32-bit unsigned integer division R0/R1
+000003E4:             ; ; Returns quotient in R0 and remainder in R2
+000003E4:             ; ; R3 is corrupted (will be zero)
+000003E4:             ; ; Returns quotient FFFFFFFF in case of division by zero
+000003E4:             ; ; Does not require a stack
+000003E4:             ; 
+000003E4: E3A02000    ; divide          mov     r2, #0                  ; AccH
+000003E8: E3A03020    ;                 mov     r3, #32                 ; Number of bits in division
+000003EC: E0900000    ;                 adds    r0, r0, r0              ; Shift dividend
+000003F0:             ; 
+000003F0: E0A22002    ; divide1         adc     r2, r2, r2              ; Shift AccH, carry into LSB
+000003F4: E1520001    ;                 cmp     r2, r1                  ; Will it go?
+000003F8: 20422001    ;                 subhs   r2, r2, r1              ; If so, subtract
+000003FC: E0B00000    ;                 adcs    r0, r0, r0              ; Shift dividend & Acc. result
+00000400: E2433001    ;                 sub     r3, r3, #1              ; Loop count
+00000404: E1130003    ;                 tst     r3, r3                  ; Leaves carry alone
+00000408: 1AFFFFF8    ;                 bne     divide1                 ; Repeat as required
+0000040C:             ; 
+0000040C: E1A0F00E    ;                 mov     pc, lr                  ; Return
+00000410:             ; 
+00000410:             ; ;-------------------------------------------------------------------------------
+00000410:             ; 
+00000410:             ; 
+00000410:             ; 
+00000410:             ; INCLUDE timer.s 
+00000410:             ; TIMER EQU &8
+00000410:             ; TIMER_COMP EQU &C
+00000410:             ; 
+00000410: 00000000    ; time_func DEFW 0
+00000414:             ; TIMER_FUNCTION
+00000414: E51FF00C    ;                 LDR PC, time_func
+00000418:             ; SET_TIMER_FUNCTION
+00000418: E50F0010    ;                 STR R0, time_func
+0000041C: E1A0F00E    ;                 MOV PC, LR 
+00000420:             ; 
+00000420:             ; SET_TIMER_VAL
+00000420: E92D4003    ;                 PUSH {R0-R1, LR}
+00000424: E3A01201    ;                 MOV R1, #IO
+00000428: E5C1000C    ;                 STRB R0, [R1, #TIMER_COMP]
+0000042C: E8BD8003    ;                 POP {R0-R1, PC}
+00000430:             ; 
+00000430:             ; TIMER_ENABLE_MASK EQU 0B1000_0000
+00000430:             ; ENABLE_TIMER
+00000430: E92D4003    ;                 PUSH {R0-R1, LR}
+00000434: E3A00201    ;                 MOV R0, #IO
+00000438: E5D0101C    ;                 LDRB R1, [R0, #IRQ_EN_PORT]
+0000043C: E3811080    ;                 ORR R1, R1, #TIMER_ENABLE_MASK
+00000440: E5C0101C    ;                 STRB R1, [R0, #IRQ_EN_PORT]
+00000444: E8BD8003    ;                 POP {R0-R1, PC}
+00000448:             ; 
+00000448:             ; TIMER_DISABLE_MASK EQU 0B0111_1111
+00000448:             ; DISABLE_TIMER
+00000448: E92D4003    ;                 PUSH {R0-R1, LR}
+0000044C: E3A00201    ;                 MOV R0, #IO
+00000450: E5D0101C    ;                 LDRB R1, [R0, #IRQ_EN_PORT]
+00000454: E201107F    ;                 AND R1, R1, #TIMER_DISABLE_MASK
+00000458: E5C0101C    ;                 STRB R1, [R0, #IRQ_EN_PORT]
+0000045C: E8BD8003    ;                 POP {R0-R1, PC}
+00000460:             ; INCLUDE buttons.s 
+00000460:             ; BUTTON EQU &4
+00000460:             ; CHECK_BUTTONS
+00000460: E92D4000    ;         PUSH {LR}               ;poll button
+00000464: E3A00201    ;         MOV R0, #IO
+00000468: E5D00004    ;         LDRB R0, [R0, #BUTTON]
+0000046C: E1A00320    ;         MOV R0, R0 LSR #6
+00000470: E8BD8000    ;         POP {PC}
+00000474:             ; 
+00000474:             ; DEFS 80
+000004C4:             ; USR_STACK
+000004C4:             ; DEFS 80
+00000514:             ; SVC_STACK
+00000514:             ; DEFS 80
+00000564:             ; IRQ_STACK
+
+Symbol Table: Labels
+: IO                                10000000  Value
+: IRQ_PORT                          00000018  Value
+: IRQ_EN_PORT                       0000001C  Value
+: TIMER_MASK                        0000007F  Value
+: IRQ_CALL                          00000020  Local -- ARM
+: REG_STORE                         00000044  Local -- ARM
+: SVC_CALL                          00000048  Local -- ARM
+: MAX_SVC                           00000004  Value
+: JUMP_TABLE                        00000074  Local -- ARM
+: EXIT_SVC                          00000094  Local -- ARM
+: SVC_UNKOWN                        000000AC  Local -- ARM
+: SVC_0                             000000B0  Local -- ARM
+: SVC_1                             000000B8  Local -- ARM
+: SVC_2                             000000C0  Local -- ARM
+: HALT                              00000020  Value
+: SVC_3                             000000CC  Local -- ARM
+: SVC_4                             000000D4  Local -- ARM
+: SVC_5                             000000DC  Local -- ARM
+: SVC_6                             000000E4  Local -- ARM
+: SVC_7                             000000EC  Local -- ARM
+: MODE_CLEAR                        0000001F  Value
+: SYSTEM                            0000001F  Value
+: SUPERVISOR                        00000013  Value
+: INTERUPT                          00000012  Value
+: MAIN                              000000F4  Local -- ARM
+: USR_CODE                          00000144  Local -- ARM
+: INCREMENT_TIME                    00000168  Local -- ARM
+: DISPLAY                           00000180  Local -- ARM
+: ENDPAUSE                          0000019C  Local -- ARM
+: PAUSE                             000001BC  Local -- ARM
+: VAL                               000001D0  Local -- ARM
+: CONTROL                           00000004  Value
+: DATA                              00000000  Value
+: BUSY_MASK                         00000080  Value
+: NULL_CHAR                         00000000  Value
+: NEW_LINE                          0000000A  Value
+: PREP_COMMAND                      00000020  Value
+: ENABLE_COMMAND                    00000021  Value
+: END_COMMAND                       00000020  Value
+: FORMFEAD                          00000001  Value
+: LINEFEAD                          000000C0  Value
+: STARTPOS1                         00000080  Value
+: STARTPOS2                         000000C0  Value
+: PREP_READ                         00000024  Value
+: ENABLE_READ                       00000025  Value
+: END_READ                          00000024  Value
+: PREP_WRITE                        00000022  Value
+: ENABLE_WRITE                      00000023  Value
+: END_WRITE                         00000022  Value
+: PrintString                       000001D4  Local -- ARM
+: NEXT_CHAR                         000001DC  Local -- ARM
+: EOS                               000001F8  Local -- ARM
+: PrintChar                         000001FC  Local -- ARM
+: PRINT_CHAR                        00000208  Local -- ARM
+: PrintTime                         0000021C  Local -- ARM
+: MoveToLine1                       000002A4  Local -- ARM
+: MoveToLine2                       000002B4  Local -- ARM
+: NewLine                           000002C4  Local -- ARM
+: Clear                             000002D4  Local -- ARM
+: SETUP_COMMAND                     000002E4  Local -- ARM
+: CHECK_BUSY                        000002F8  Local -- ARM
+: BUSY                              00000300  Local -- ARM
+: WRITE_CHAR                        00000320  Local -- ARM
+: WRITE_COMMAND                     00000340  Local -- ARM
+: bcd_convert                       00000360  Local -- ARM
+: bcd_time_convert                  00000370  Local -- ARM
+: bcd_loop                          0000037C  Local -- ARM
+: bcd_out                           00000398  Local -- ARM
+: dec_table                         000003A0  Local -- ARM
+: time_table                        000003C8  Local -- ARM
+: divide                            000003E4  Local -- ARM
+: divide1                           000003F0  Local -- ARM
+: TIMER                             00000008  Value
+: TIMER_COMP                        0000000C  Value
+: time_func                         00000410  Local -- ARM
+: TIMER_FUNCTION                    00000414  Local -- ARM
+: SET_TIMER_FUNCTION                00000418  Local -- ARM
+: SET_TIMER_VAL                     00000420  Local -- ARM
+: TIMER_ENABLE_MASK                 00000080  Value
+: ENABLE_TIMER                      00000430  Local -- ARM
+: TIMER_DISABLE_MASK                0000007F  Value
+: DISABLE_TIMER                     00000448  Local -- ARM
+: BUTTON                            00000004  Value
+: CHECK_BUTTONS                     00000460  Local -- ARM
+: USR_STACK                         000004C4  Local -- ARM
+: SVC_STACK                         00000514  Local -- ARM
+: IRQ_STACK                         00000564  Local -- ARM
